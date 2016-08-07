@@ -252,8 +252,8 @@ create or replace type plc_bind_list is table of plc_bind_var;
 which holds instances of `PLC_BIND_VAR` :  
 ```
 create or replace type plc_bind_var is object (
-  token  varchar2(30)
-, val    binary_double
+  name  varchar2(30)
+, val   binary_double
 );
 ```
 

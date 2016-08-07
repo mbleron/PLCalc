@@ -261,7 +261,7 @@ Variable name matching in the expression is case-insensitive.
 
 A couple of examples : 
 
-1. Binding different values of a variable to the same compiled expression
+1\. Binding different values of a variable to the same compiled expression
 ```
 SQL> declare
   2    expr  plc_token_list := plcalc.compile('(1+x)^2');
@@ -286,7 +286,7 @@ SQL> declare
 121
 ```  
 
-2. Binding multiple variables
+2\. Binding multiple variables
 ```
 SQL> with vars (name, val) as (
   2    select 'a', 1 from dual union all
@@ -308,7 +308,7 @@ SQL> with vars (name, val) as (
 <br>
 #### Serialization
 
-1. Serialization of a compiled expression to its original infix form
+1\. Serialization of a compiled expression to its original infix form
 
 Using `p_options` = 0 (SERIALIZE_INFIX, the default)
 ```
@@ -325,7 +325,7 @@ MIN((1 + X) ^ 2,Y)
 
 ```
 <br>
-2. Serialization to a SQL expression
+2\. Serialization to a SQL expression
 
 Using `p_options` = 1 (SERIALIZE_SQL)
 
@@ -343,7 +343,7 @@ least(power(1 + "X", 2),"Y")
  
 ```
 <br>
-3. Serialization to Presentation MathML content
+3\. Serialization to Presentation MathML content
 
 ```
 SQL> select plcalc.to_MathML(

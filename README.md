@@ -88,7 +88,6 @@ Expressions may be factorized and assigned to variables in a `DECLARE` prolog, a
 declare ( x := y+1, q := ln(x+1) ) return (1 - q)/(1- q^n)
 ```
 
-<br>
 ## Usage
 
 #### Evaluating an expression string
@@ -133,7 +132,6 @@ RESULT
 Inf
 ```
 
-<br>
 #### Compiling an expression using default format
 
 Compilation using the default format returns a collection (VARRAY) of type `PLC_TOKEN_LIST`.  
@@ -170,7 +168,6 @@ SQL> select *
 
 The optional `p_options` argument controls whether we want to `VALIDATE` or `NO_VALIDATE` the expression (default is `VALIDATE`).  
 
-<br>
 #### Compiling an expression using binary format
 
 Binary compilation returns a scalar value of RAW data type, representing the same sequence of RPN tokens but in a more compact format.
@@ -215,7 +212,6 @@ SQL> select type, strval, numval
          5         
 ```
 
-<br>
 #### Evaluating a compiled expression
 
 While a string expression may be directly evaluated using `eval` function, the real strength of PLCalc is in the evaluation of compiled expressions.  
@@ -240,8 +236,7 @@ Thus, the `eval` function is overloaded to accept both compiled formats (default
 ```
 
 We'll see how to bind variables at runtime in the next section.
- 
-<br>
+
 #### Using bind variables
 
 The `eval` function (all flavors of it) possesses an optional argument `p_vars` we can use to pass a collection of bind variables to the expression.  
@@ -305,7 +300,6 @@ SQL> with vars (name, val) as (
          6
 ```
 
-<br>
 #### Serialization
 
 1\. Serialization of a compiled expression to its original infix form
@@ -324,7 +318,7 @@ RESULT
 MIN((1 + X) ^ 2,Y)
 
 ```
-<br>
+
 2\. Serialization to a SQL expression
 
 Using `p_options` = 1 (SERIALIZE_SQL)
@@ -342,7 +336,7 @@ RESULT
 least(power(1 + "X", 2),"Y")
  
 ```
-<br>
+
 3\. Serialization to Presentation MathML content
 
 ```
@@ -368,11 +362,8 @@ fenced></math>
 
 Rendered in a compatible browser :  
 
-
-
 [![](./MathML/expr.png)](./MathML/mathml.xml)
 
-<br>
 #### Storing compiled expression in the database
 
 ```
@@ -410,7 +401,6 @@ where e.id = 1;
 ```
 
 
-<br>
 ## Appendices
 
 #### EBNF grammar

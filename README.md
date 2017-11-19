@@ -25,7 +25,8 @@ Please create an issue here on GitHub at <https://github.com/mbleron/oracle/issu
 @plc_token.typ
 @plc_token_list.tps
 @plc_stack.typ
-@plcalc.pck
+@plcalc.pks
+@plcalc.pkb
 ```
 
 ## Generalities
@@ -337,7 +338,56 @@ least(power(1 + "X", 2),"Y")
  
 ```
 
-3\. Serialization to Presentation MathML content
+3\. Whitespace control
+
+> New in version 1.1
+
+Prior to version 1.1, space characters (ascii 32) were added by default around operators.
+It is now possible to control that behaviour via the SERIALIZE_NO_WS option : 
+
+```
+SQL> begin
+  2    dbms_output.put_line(
+  3      plcalc.serialize(plcalc.compile('-x-(y+z)'))
+  4    );
+  5  end;
+  6  /
+ 
+- X - (Y + Z)
+
+```
+
+```
+SQL> begin
+  2    dbms_output.put_line(
+  3      plcalc.serialize(
+  4        plcalc.compile('-x-(y+z)')
+  5      , plcalc.SERIALIZE_NO_WS
+  6      )
+  7    );
+  8  end;
+  9  /
+ 
+-X-(Y+Z)
+
+```
+
+```
+SQL> begin
+  2    dbms_output.put_line(
+  3      plcalc.serialize(
+  4        plcalc.compile('-x-(y+z)')
+  5      , plcalc.SERIALIZE_SQL + plcalc.SERIALIZE_NO_WS
+  6      )
+  7    );
+  8  end;
+  9  /
+ 
+-"X"-("Y"+"Z")
+
+```
+
+4\. Serialization to Presentation MathML content
 
 ```
 SQL> select plcalc.to_MathML(
@@ -442,6 +492,11 @@ where e.id = 1;
 
 ## CHANGELOG
 
+### 1.1 (2017-11-19)
+
+* Fix for issue #8 : serialization of operator and rhs operand having the same precedence gives wrong result
+* Added SERIALIZE_NO_WS option to control spacing around operator
+
 ### 1.0 (2016-08-07)
 
 * First publication of the revised code
@@ -450,4 +505,4 @@ where e.id = 1;
 
 ## Copyright and license
 
-Copyright 2016 Marc Bleron. Released under MIT license.
+Copyright 2016-2017 Marc Bleron. Released under MIT license.

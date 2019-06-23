@@ -3,7 +3,7 @@ create or replace package plcalc is
 
   MIT License
 
-  Copyright (c) 2013-2017 Marc Bleron
+  Copyright (c) 2013-2019 Marc Bleron
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -49,6 +49,10 @@ create or replace package plcalc is
                                    operand having the same precedence gives wrong result
                                  - add SERIALIZE_NO_WS option to control spacing around
                                    operator
+    Marc Bleron       2019-06-06 - fix for issue #11 : serialization does not handle 
+                                   extended expressions
+                                 - fix wrong error message when tokenizing invalid 
+                                   identifier
 ====================================================================================== */
 
   NULL_INF_OR_NAN        constant number := 0;

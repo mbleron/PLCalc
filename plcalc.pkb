@@ -44,6 +44,8 @@ create or replace package body plcalc is
   FUNCTION_EXPECTS_LEAST  constant varchar2(100) := 'Syntax error at position %d : function ''%s'' expects at least %d argument%s';
   LEX_INVALID_CHAR        constant varchar2(100) := 'Lexical error at position %d : invalid character ''%s''';
   LEX_INVALID_NUMBER      constant varchar2(100) := 'Lexical error at position %d : invalid number ''%s''';
+  LEX_ID_TOO_LONG         constant varchar2(100) := 'Lexical error at position %d : identifier is too long (maximum: %d)';
+  SER_SQL_UNSUPPORTED     constant varchar2(100) := 'Serialization error : %s cannot be serialized as SQL';
   
   C_PI                    constant binary_double := acos(-1d);
 
@@ -406,20 +408,23 @@ create or replace package body plcalc is
           
         when '"' then
          
-          tmp := c;
+          tmp := null;
           pos := tokenizer.pos;
-          c := getc;
-          while c is not null loop
-            exit when c = '"';
-            tmp := tmp || c;
+          loop
             c := getc;
+            if c = '"' then
+              exit;
+            elsif c is null then
+              error(UNEXPECTED_INSTEAD_OF, tokenizer.pos-1, tm(T_EOF), '"');
+            elsif length(tmp) = 30 then
+              error(LEX_ID_TOO_LONG, pos, 30);
+            else
+              tmp := tmp || c;
+            end if;
           end loop;
-          if c is null then
-            error(LEX_INVALID_CHAR, tokenizer.pos-1, substr(tmp,-1));
-          else
-            set_token(T_IDENT, substr(tmp,2), pos);
-          end if;
-
+          
+          set_token(T_IDENT, tmp, pos);
+          
         when '''' then
           tmp := null;
           pos := tokenizer.pos;
@@ -510,6 +515,9 @@ create or replace package body plcalc is
                or c between '0' and '9'
                or c = '_' 
             loop
+              if length(tmp) = 30 then
+                error(LEX_ID_TOO_LONG, pos, 30);
+              end if;
               tmp := tmp || c;
               c := getc;
             end loop;
@@ -697,9 +705,9 @@ create or replace package body plcalc is
       if not(cmp.st.isEmpty) then
         top := cmp.st.peek;
 
-        if top.type = T_FUNC then
+        if top.type in (T_FUNC,T_DECL) then
           
-          if fnc(top.strval) < 0 then
+          if top.type = T_FUNC and fnc(top.strval) < 0 or top.type = T_DECL then
             push(new plc_token(T_ARGC, null, arg_cnt_tmp, null));
           end if;
           
@@ -727,6 +735,10 @@ create or replace package body plcalc is
         push(top);
         cmp.st.pop;
       end loop;
+      
+    when token.type in (T_DECL,T_RETURN) then
+      
+      cmp.st.push(token);
       
     else
       
@@ -1161,10 +1173,11 @@ create or replace package body plcalc is
         begin
           r.extend;
           j := j + 1;
+          tmp.strval := token.strval;
           tmp.numval := v(token.strval);
         exception
           when no_data_found then
-            tmp.strval := token.strval;
+            null;
         end;
         
       elsif token.type = T_NUMBER or token.type = T_ARGC then
@@ -1291,6 +1304,14 @@ create or replace package body plcalc is
             r.trim(2);
             j := j - 2;
             continue;
+            
+          when T_DECL then
+            r.trim; -- pop T_ARGC
+            j := j - 1;
+            continue;
+          
+          when T_RETURN then
+            continue;
 
         end case;
 
@@ -1312,8 +1333,8 @@ create or replace package body plcalc is
 
     return case when p_flags = KEEP_INF_OR_NAN
                   or ( p_flags = NULL_INF_OR_NAN
-                       and not(tmp.numval is nan or tmp.numval is infinite) )
-           then tmp.numval end ;
+                       and not(r(1).numval is nan or r(1).numval is infinite) )
+           then r(1).numval end ;
 
   end ;
 
@@ -1358,6 +1379,19 @@ create or replace package body plcalc is
     return eval(compile(p_expr, p_options), p_vars, p_flags);
   end;
 
+
+  function has_extended_expr (tlist in plc_token_list)
+  return boolean deterministic
+  is
+  begin
+    for i in 1 .. tlist.count loop
+      if tlist(i).type = T_DECL then
+        return true;
+      end if;
+    end loop;
+    return false;
+  end;
+
   
   function serialize (
     tlist     in plc_token_list
@@ -1395,13 +1429,18 @@ create or replace package body plcalc is
         str := null;
       end if;
     end;
+
+    procedure pop is
+    begin
+      st.trim;
+      j := j - 1;
+    end;
     
     function pop return varchar2 is
       result varchar2(32767);
     begin
       result := st(j).expr;
-      st.trim;
-      j := j - 1;
+      pop();
       return result;
     end;
     
@@ -1410,14 +1449,18 @@ create or replace package body plcalc is
       output := output || str;
     end;
     
-    procedure append_ws is
+    procedure append_ws (force in boolean default false) is
     begin
-      if serialize_whitespace then
+      if serialize_whitespace or force then
         output := output || ' ';
       end if;
     end;
 
   begin
+    
+    if serialize_to_sql and has_extended_expr(tlist) then
+      error(SER_SQL_UNSUPPORTED, 'extended expressions');
+    end if;
    
     while i < tlist.count loop
      
@@ -1514,8 +1557,39 @@ create or replace package body plcalc is
           output := '''' || token.strval || '''';
           push(output);
           
-        --when T_PROP then
-        --  push(token.strval);
+        when T_DECL then
+          
+          argc := to_number(pop()); -- pop argc
+        
+          output := token.strval;
+          append_ws;
+          append('(');
+          for p in reverse 1 .. argc loop
+            append(st(j-p+1).expr);
+            if p > 1 then
+              append(',');
+            end if;           
+          end loop;
+          append(')');
+          st.trim(argc);
+          j := j - argc;
+          
+          push(output);
+          
+        when T_RETURN then
+          
+          /* When a T_RETURN token is found, the stack should be :
+           [ j ]  RETURNed expr
+           [j-1]  DECLARE expr
+           [j-2]  ...
+          */
+          output := st(j-1).expr;   -- DECLARE expr
+          append_ws(force => true);
+          append(token.strval);     -- RETURN keyword
+          append_ws(force => true);
+          append(pop());            -- pop and append RETURNed expr
+          pop();                    -- pop DECLARE expr
+          push(output, prec => 0);
           
         else
          
@@ -1956,8 +2030,7 @@ create or replace package body plcalc is
   is
   begin
     return (tlist(tlist.last).type in (OP_EQ, OP_NE, OP_LT, OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR));
-  end; 
-
+  end;
 
 begin
   initMaps;
